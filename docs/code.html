@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Winget Update Manager</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3b82f6", // Vibrant blue
+                        secondary: "#10b981", // Green for success
+                        accent: "#8b5cf6", // Purple for selection
+                        surface: {
+                            light: "#ffffff",
+                            dark: "#1e293b",
+                        },
+                        "background-light": "#f3f4f6",
+                        "background-dark": "#0f172a",
+                        "console-bg": "#020617",
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                    },
+                },
+            },
+        };
+    </script>
+<style>::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        .console-text {
+            text-shadow: 0 0 2px rgba(74, 222, 128, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200 font-sans h-screen flex overflow-hidden transition-colors duration-200">
+<aside class="w-64 bg-surface-light dark:bg-surface-dark border-r border-slate-200 dark:border-slate-700 flex flex-col justify-between hidden md:flex shrink-0 z-20 shadow-lg">
+<div>
+<div class="p-6 flex items-center space-x-3 border-b border-slate-100 dark:border-slate-700/50">
+<div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+<span class="material-icons-round text-white text-lg">terminal</span>
+</div>
+<h1 class="font-bold text-lg tracking-tight text-slate-900 dark:text-white">Winget UM</h1>
+</div>
+<nav class="mt-6 px-4 space-y-1">
+<a class="flex items-center px-4 py-3 text-sm font-medium rounded-lg bg-primary/10 text-primary dark:text-blue-400 group relative overflow-hidden" href="#">
+<span class="material-icons-round mr-3">dashboard</span>
+                    Dashboard
+                    <div class="absolute left-0 top-0 h-full w-1 bg-primary rounded-r"></div>
+</a>
+<a class="flex items-center px-4 py-3 text-sm font-medium rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons-round mr-3">apps</span>
+                    Installed Apps
+                </a>
+<a class="flex items-center px-4 py-3 text-sm font-medium rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors justify-between" href="#">
+<div class="flex items-center">
+<span class="material-icons-round mr-3">system_update</span>
+                        Updates
+                    </div>
+<span class="bg-secondary/20 text-secondary text-xs font-bold px-2 py-0.5 rounded-full">3</span>
+</a>
+<a class="flex items-center px-4 py-3 text-sm font-medium rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons-round mr-3">history</span>
+                    History
+                </a>
+</nav>
+</div>
+<div class="p-4 border-t border-slate-100 dark:border-slate-700/50">
+<a class="flex items-center px-4 py-3 text-sm font-medium rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons-round mr-3">settings</span>
+                Settings
+            </a>
+<div class="mt-4 flex items-center px-4 py-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
+<div class="w-2 h-2 rounded-full bg-secondary animate-pulse mr-3"></div>
+<span class="text-xs font-mono text-slate-500 dark:text-slate-400">v1.4.2 stable</span>
+</div>
+</div>
+</aside>
+<main class="flex-1 flex flex-col min-w-0 bg-background-light dark:bg-background-dark relative">
+<header class="bg-surface-light dark:bg-surface-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 px-8 py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0 z-10 sticky top-0">
+<div>
+<h2 class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Updates Available</h2>
+<p class="text-sm text-slate-500 dark:text-slate-400 mt-1 flex items-center">
+<span class="w-2 h-2 rounded-full bg-amber-500 mr-2"></span>
+                    3 packages can be upgraded
+                </p>
+</div>
+<div class="flex items-center space-x-3">
+<button class="flex items-center justify-center px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm">
+<span class="material-icons-round text-base mr-2">refresh</span>
+                    Check Updates
+                </button>
+<button class="flex items-center justify-center px-4 py-2 bg-accent hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition-all shadow-lg shadow-purple-500/20">
+<span class="material-icons-round text-base mr-2">checklist</span>
+                    Update Selected
+                </button>
+<button class="flex items-center justify-center px-4 py-2 bg-secondary hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-all shadow-lg shadow-emerald-500/20">
+<span class="material-icons-round text-base mr-2">upgrade</span>
+                    Update All
+                </button>
+</div>
+</header>
+<div class="flex-1 overflow-hidden flex flex-col p-6 sm:p-8 space-y-6">
+<div class="flex-1 bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
+<div class="grid grid-cols-12 gap-4 px-6 py-3 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+<div class="col-span-1 flex items-center justify-center">
+<input class="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary dark:bg-slate-700 h-4 w-4" type="checkbox"/>
+</div>
+<div class="col-span-4">Application Name</div>
+<div class="col-span-3">Package ID</div>
+<div class="col-span-2">Current</div>
+<div class="col-span-2">Latest</div>
+</div>
+<div class="overflow-y-auto flex-1 p-0">
+<div class="grid grid-cols-12 gap-4 px-6 py-4 items-center border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
+<div class="col-span-1 flex items-center justify-center">
+<input checked="" class="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary dark:bg-slate-700 h-4 w-4" type="checkbox"/>
+</div>
+<div class="col-span-4 flex items-center space-x-3">
+<div class="w-8 h-8 rounded bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 dark:text-orange-400 font-bold text-xs">VL</div>
+<div>
+<div class="text-sm font-medium text-slate-900 dark:text-slate-200">VLC Media Player</div>
+<div class="text-xs text-slate-500 dark:text-slate-500">VideoLAN</div>
+</div>
+</div>
+<div class="col-span-3 text-sm text-slate-600 dark:text-slate-400 font-mono text-xs">VideoLAN.VLC</div>
+<div class="col-span-2 text-sm text-slate-500 dark:text-slate-500 font-mono">3.0.18</div>
+<div class="col-span-2 flex items-center space-x-2">
+<span class="text-sm text-secondary font-mono font-medium">3.0.20</span>
+<span class="material-icons-round text-secondary text-base">arrow_upward</span>
+</div>
+</div>
+<div class="grid grid-cols-12 gap-4 px-6 py-4 items-center border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
+<div class="col-span-1 flex items-center justify-center">
+<input checked="" class="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary dark:bg-slate-700 h-4 w-4" type="checkbox"/>
+</div>
+<div class="col-span-4 flex items-center space-x-3">
+<div class="w-8 h-8 rounded bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xs">VS</div>
+<div>
+<div class="text-sm font-medium text-slate-900 dark:text-slate-200">Visual Studio Code</div>
+<div class="text-xs text-slate-500 dark:text-slate-500">Microsoft</div>
+</div>
+</div>
+<div class="col-span-3 text-sm text-slate-600 dark:text-slate-400 font-mono text-xs">Microsoft.VisualStudioCode</div>
+<div class="col-span-2 text-sm text-slate-500 dark:text-slate-500 font-mono">1.84.0</div>
+<div class="col-span-2 flex items-center space-x-2">
+<span class="text-sm text-secondary font-mono font-medium">1.86.2</span>
+<span class="material-icons-round text-secondary text-base">arrow_upward</span>
+</div>
+</div>
+<div class="grid grid-cols-12 gap-4 px-6 py-4 items-center border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
+<div class="col-span-1 flex items-center justify-center">
+<input class="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary dark:bg-slate-700 h-4 w-4" type="checkbox"/>
+</div>
+<div class="col-span-4 flex items-center space-x-3">
+<div class="w-8 h-8 rounded bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 font-bold text-xs">SP</div>
+<div>
+<div class="text-sm font-medium text-slate-900 dark:text-slate-200">Spotify</div>
+<div class="text-xs text-slate-500 dark:text-slate-500">Spotify AB</div>
+</div>
+</div>
+<div class="col-span-3 text-sm text-slate-600 dark:text-slate-400 font-mono text-xs">Spotify.Spotify</div>
+<div class="col-span-2 text-sm text-slate-500 dark:text-slate-500 font-mono">1.2.25.1011</div>
+<div class="col-span-2 flex items-center space-x-2">
+<span class="text-sm text-secondary font-mono font-medium">1.2.30.1120</span>
+<span class="material-icons-round text-secondary text-base">arrow_upward</span>
+</div>
+</div>
+<div class="flex flex-col items-center justify-center py-12 text-center opacity-40">
+<span class="material-icons-round text-6xl text-slate-300 dark:text-slate-600 mb-2">check_circle_outline</span>
+<p class="text-slate-500 dark:text-slate-400">All other apps are up to date</p>
+</div>
+</div>
+</div>
+<div class="h-48 shrink-0 bg-console-bg rounded-xl shadow-lg border border-slate-800 overflow-hidden flex flex-col">
+<div class="px-4 py-2 bg-slate-900/50 border-b border-slate-800 flex justify-between items-center">
+<span class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+<span class="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
+                        Live Console Output
+                    </span>
+<div class="flex space-x-2">
+<button class="text-slate-500 hover:text-slate-300"><span class="material-icons-round text-sm">content_copy</span></button>
+<button class="text-slate-500 hover:text-slate-300"><span class="material-icons-round text-sm">delete_outline</span></button>
+</div>
+</div>
+<div class="p-4 font-mono text-xs sm:text-sm text-slate-300 overflow-y-auto space-y-1">
+<div class="flex">
+<span class="text-slate-500 mr-2">[10:42:01]</span>
+<span>Initializing winget source...</span>
+</div>
+<div class="flex">
+<span class="text-slate-500 mr-2">[10:42:03]</span>
+<span>Found <span class="text-secondary">3</span> upgrades available.</span>
+</div>
+<div class="flex">
+<span class="text-slate-500 mr-2">[10:42:05]</span>
+<span class="text-green-400 console-text">&gt; winget upgrade --all --include-unknown</span>
+</div>
+<div class="flex">
+<span class="text-slate-500 mr-2 select-none"> </span>
+<span class="opacity-70">Waiting for user confirmation...</span>
+</div>
+<div class="flex mt-1">
+<span class="text-secondary font-bold mr-2">&gt;</span>
+<span class="animate-pulse bg-slate-200 h-4 w-2 inline-block align-middle"></span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Check local storage or system preference
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
+</body></html>

@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+
+build/
+build_npm_updates/
+dist/
+dist_npm_updates/
+
+tmp_*/
+
+.pytest_cache/
