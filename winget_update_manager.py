@@ -256,83 +256,50 @@ class HistoryManager:
                     raw = json.load(f)
                 if isinstance(raw, list):
                     self.entries = raw
-                    self.rollback_ledger = {}
                 elif isinstance(raw, dict):
-                    entries = raw.get("entries", [])
-                    self.entries = entries if isinstance(entries, list) else []
+                    self.entries = raw.get("entries", [])
                     self.rollback_ledger = self._normalize_ledger(raw.get("rollback_ledger", {}))
-                else:
-                    self.entries = []
-                    self.rollback_ledger = {}
         except Exception:
-            self.entries = []
-            self.rollback_ledger = {}
+            pass
         if not self.rollback_ledger:
             self._rebuild_ledger_from_entries()
 
     def save(self):
         try:
             with open(HISTORY_FILE, "w") as f:
-                json.dump({
-                    "entries": self.entries,
-                    "rollback_ledger": self.rollback_ledger,
-                }, f, indent=2)
+                json.dump({"entries": self.entries, "rollback_ledger": self.rollback_ledger}, f, indent=2)
         except Exception:
             pass
 
     def _normalize_ledger(self, ledger):
+        if not isinstance(ledger, dict): return {}
         normalized = {}
-        if not isinstance(ledger, dict):
-            return normalized
         for pkg_id, items in ledger.items():
-            if not isinstance(pkg_id, str) or not isinstance(items, list):
-                continue
-            clean_items = []
-            for item in items:
-                if not isinstance(item, dict):
-                    continue
-                version = str(item.get("version") or "").strip()
-                if not version:
-                    continue
-                clean_items.append({
-                    "version": version,
-                    "manager": item.get("manager", "winget"),
-                    "timestamp": item.get("timestamp") or datetime.now().isoformat(),
-                })
-            if clean_items:
-                normalized[pkg_id] = clean_items[-100:]
+            clean = [{"version": str(i.get("version", "")).strip(), 
+                      "manager": i.get("manager", "winget"), 
+                      "timestamp": i.get("timestamp", datetime.now().isoformat())} 
+                     for i in items if isinstance(i, dict) and str(i.get("version", "")).strip()]
+            if clean: normalized[str(pkg_id)] = clean[-100:]
         return normalized
 
     def _append_ledger_version(self, package_id, version, manager="winget", timestamp=None):
-        package_id = str(package_id or "").strip()
-        version = str(version or "").strip()
-        if not package_id or not version:
-            return
-        items = self.rollback_ledger.setdefault(package_id, [])
-        entry = {
-            "version": version,
-            "manager": manager,
-            "timestamp": timestamp or datetime.now().isoformat(),
-        }
-        if not items or items[-1].get("version") != version:
+        pkg_id, ver = str(package_id or "").strip(), str(version or "").strip()
+        if not pkg_id or not ver: return
+        items = self.rollback_ledger.setdefault(pkg_id, [])
+        entry = {"version": ver, "manager": manager, "timestamp": timestamp or datetime.now().isoformat()}
+        if not items or items[-1]["version"] != ver:
             items.append(entry)
         else:
             items[-1] = entry
-        self.rollback_ledger[package_id] = items[-100:]
+        self.rollback_ledger[pkg_id] = items[-100:]
 
     def _rebuild_ledger_from_entries(self):
         for entry in reversed(self.entries):
-            if entry.get("status") != "success":
-                continue
-            if entry.get("manager", "winget") != "winget":
-                continue
-            package_id = entry.get("package_id")
-            old_version = entry.get("old_version")
-            new_version = entry.get("new_version")
-            if old_version:
-                self._append_ledger_version(package_id, old_version, "winget", entry.get("timestamp"))
-            if new_version:
-                self._append_ledger_version(package_id, new_version, "winget", entry.get("timestamp"))
+            if entry.get("status") == "success" and entry.get("manager", "winget") == "winget":
+                pkg_id = entry.get("package_id")
+                for ver_key in ["old_version", "new_version"]:
+                    if entry.get(ver_key):
+                        self._append_ledger_version(pkg_id, entry[ver_key], "winget", entry.get("timestamp"))
 
     def add(self, package_id, package_name, old_ver, new_ver, status, manager="winget"):
         self.entries.insert(0, {
@@ -348,27 +315,22 @@ class HistoryManager:
         self.save()
 
     def record_version(self, package_id, version, manager="winget", timestamp=None):
-        if manager != "winget":
-            return
-        self._append_ledger_version(package_id, version, manager, timestamp)
-        self.save()
+        if manager == "winget":
+            self._append_ledger_version(package_id, version, manager, timestamp)
+            self.save()
 
     def previous_version(self, package_id, current_version, manager="winget"):
-        if manager != "winget":
-            return None
-        current_version = str(current_version or "").strip()
+        if manager != "winget": return None
+        cur = str(current_version or "").strip()
         for item in reversed(self.rollback_ledger.get(package_id, [])):
-            version = str(item.get("version") or "").strip()
-            if version and version != current_version:
-                return version
+            if item["version"] != cur: return item["version"]
         return None
 
     def get_entries(self, limit=100):
         return self.entries[:limit]
 
     def clear(self):
-        self.entries = []
-        self.rollback_ledger = {}
+        self.entries, self.rollback_ledger = [], {}
         self.save()
 
 
@@ -428,96 +390,64 @@ class ScanCache:
 
 class WingetParser:
     @staticmethod
-    def parse_upgrade_output(output):
-        updates = []
-        lines = output.strip().split('\n')
+    def _parse_tabular_output(output, required_cols):
+        items = []
+        lines = output.strip().split("\n")
         header_idx = -1
         for i, line in enumerate(lines):
-            if 'Name' in line and 'Id' in line and 'Version' in line:
+            if all(col in line for col in required_cols):
                 header_idx = i
                 break
         if header_idx == -1:
             return []
 
         header = lines[header_idx]
-        cols = {}
-        for col_name in ['Name', 'Id', 'Version', 'Available', 'Source']:
-            pos = header.find(col_name)
-            if pos >= 0:
-                cols[col_name.lower()] = pos
-
-        if not all(k in cols for k in ['name', 'id', 'version']):
-            return []
-
+        cols = {col.lower(): header.find(col) for col in ["Name", "Id", "Version", "Available", "Source"] if header.find(col) >= 0}
         sorted_cols = sorted(cols.items(), key=lambda x: x[1])
 
         for line in lines[header_idx + 1:]:
-            stripped = line.strip()
-            if not stripped or stripped.startswith('-') or 'upgrades available' in stripped.lower():
+            if not line.strip() or line.strip().startswith("-") or "upgrades available" in line.lower():
                 continue
-            if len(line) < cols.get('version', 0):
+            if len(line) < max(cols.values()):
                 continue
             try:
                 parts = {}
-                for j, (col_name, start) in enumerate(sorted_cols):
+                for j, (name, start) in enumerate(sorted_cols):
                     end = sorted_cols[j + 1][1] if j + 1 < len(sorted_cols) else len(line)
-                    parts[col_name] = line[start:end].strip()
-
-                if parts.get('name') and parts.get('id') and parts.get('version'):
-                    available = parts.get('available', '')
-                    if available and available != parts['version']:
-                        updates.append({
-                            'name': parts['name'],
-                            'id': parts['id'],
-                            'version': parts['version'],
-                            'available': available,
-                            'manager': 'winget',
-                        })
+                    parts[name] = line[start:end].strip()
+                if all(parts.get(col.lower()) for col in required_cols):
+                    items.append(parts)
             except Exception:
                 continue
-        return updates
+        return items
+
+    @staticmethod
+    def parse_upgrade_output(output):
+        raw_items = WingetParser._parse_tabular_output(output, ["Name", "Id", "Version", "Available"])
+        return [
+            {
+                "name": item["name"],
+                "id": item["id"],
+                "version": item["version"],
+                "available": item["available"],
+                "manager": "winget",
+            }
+            for item in raw_items if item["available"] != item["version"]
+        ]
 
     @staticmethod
     def parse_list_output(output):
-        packages = []
-        lines = output.strip().split('\n')
-        header_idx = -1
-        for i, line in enumerate(lines):
-            if 'Name' in line and 'Id' in line:
-                header_idx = i
-                break
-        if header_idx == -1:
-            return []
-
-        header = lines[header_idx]
-        cols = {}
-        for col_name in ['Name', 'Id', 'Version', 'Available', 'Source']:
-            pos = header.find(col_name)
-            if pos >= 0:
-                cols[col_name.lower()] = pos
-
-        sorted_cols = sorted(cols.items(), key=lambda x: x[1])
-
-        for line in lines[header_idx + 1:]:
-            stripped = line.strip()
-            if not stripped or stripped.startswith('-'):
-                continue
-            try:
-                parts = {}
-                for j, (col_name, start) in enumerate(sorted_cols):
-                    end = sorted_cols[j + 1][1] if j + 1 < len(sorted_cols) else len(line)
-                    parts[col_name] = line[start:end].strip()
-                if parts.get('name') and parts.get('id'):
-                    packages.append({
-                        'name': parts['name'],
-                        'id': parts['id'],
-                        'version': parts.get('version', ''),
-                        'source': parts.get('source', ''),
-                        'manager': 'winget',
-                    })
-            except Exception:
-                continue
-        return packages
+        raw_items = WingetParser._parse_tabular_output(output, ["Name", "Id"])
+        return [
+            {
+                "name": item["name"],
+                "id": item["id"],
+                "version": item.get("version", ""),
+                "source": item.get("source", ""),
+                "manager": "winget",
+            }
+            for item in raw_items
+        ]
 
 
 class ScrollableFrame(tk.Frame):
